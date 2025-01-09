@@ -21,14 +21,18 @@ class SelectionSetOperator(bpy.types.Operator):
         obj = context.object
         selection_set_name = self.set_name
 
+        # Ensure we're in Pose mode
         if context.mode == 'POSE':
 
+                # Deselect all bones first if shift is NOT selected.
                 if not self.shift_held and not self.ctrl_held:
                     bpy.ops.pose.select_all(action='DESELECT')
             
+                # Access linked data
                 if hasattr(obj, 'proxy') and obj.proxy:
                     obj = obj.proxy
 
+                # Debugging: Print selection set details
                 if hasattr(obj, 'selection_sets'):
                     selection_set = obj.selection_sets.get(selection_set_name)
                     bone_list = []
@@ -66,9 +70,11 @@ class SelectionSetPanel(bpy.types.Panel):
         layout = self.layout
         obj = context.object
         
+        # Access linked data
         if hasattr(obj, 'proxy') and obj.proxy:
             obj = obj.proxy
         
+        # Fetch the selection sets directly
         if hasattr(obj, 'selection_sets'):
             selection_sets = obj.selection_sets.keys()
             for set_name in selection_sets:
