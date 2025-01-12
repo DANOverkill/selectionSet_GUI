@@ -3,7 +3,7 @@
 ## Welcome!
 Thank you for checking out my first Blender addon created with Python!
 
-Selection Set GUI is designed to simplify the management of selection sets, providing a user-friendly graphical interface for creating, editing, and managing selection sets within Blender.
+Selection Set GUI is an addon designed to simplify the management, creation, editing, and ease of access of selection sets within Blender. Some of these features are still not implemented but will be coming soon. 
 
 ## Features
 - Recognizes any selection sets already created in a rig
