@@ -1,7 +1,7 @@
 bl_info = {
     "name": "Dan's Selection Set Panel",
     "author": "DANOverkill",
-    "version": (1, 0, 0),
+    "version": (2, 0, 0),
     "blender": (2, 80, 0),
     "category": "Object",
 }
