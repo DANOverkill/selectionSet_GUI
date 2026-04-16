@@ -176,6 +176,59 @@ class RemoveAllSelectionSetsOperator(bpy.types.Operator):
         self.report({'INFO'}, "All selection sets removed")
         return {'FINISHED'}
 
+class NewSelectionSetOperator(bpy.types.Operator):
+    bl_idname = "pose.new_selection_set"
+    bl_label = "New Selection Set"
+    bl_description = "Create a new selection set from selected bones"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    set_name: bpy.props.StringProperty(
+        name="Name",
+        default="NewSet",
+        description="Name for the new selection set"
+    )
+
+    def invoke(self, context, event):
+        # Show a dialog to let the user enter a name
+        return context.window_manager.invoke_props_dialog(self)
+
+    def execute(self, context):
+        obj = context.object
+
+        # Safety checks
+        if context.mode != 'POSE':
+            self.report({'ERROR'}, "Must be in Pose mode")
+            return {'CANCELLED'}
+
+        if hasattr(obj, 'proxy') and obj.proxy:
+            obj = obj.proxy
+
+        if not hasattr(obj, 'selection_sets'):
+            self.report({'ERROR'}, "Object does not support selection sets")
+            return {'CANCELLED'}
+
+        # Ensure at least one bone is selected (optional but good UX)
+        if not context.selected_pose_bones:
+            self.report({'WARNING'}, "No bones selected – creating empty set")
+
+        # 1. Create new selection set
+        bpy.ops.pose.selection_set_add()
+
+        # 2. The new set becomes the active one; get its index
+        new_index = obj.active_selection_set
+        if new_index < 0:
+            self.report({'ERROR'}, "Failed to create selection set")
+            return {'CANCELLED'}
+
+        # 3. Rename it
+        obj.selection_sets[new_index].name = self.set_name
+
+        # 4. Assign selected bones
+        bpy.ops.pose.selection_set_assign()
+
+        self.report({'INFO'}, f"Created set '{self.set_name}'")
+        return {'FINISHED'}
+
 class SelectionSetPanel(bpy.types.Panel):
     bl_idname = "VIEW3D_PT_selection_set_panel"
     bl_label = "Selection Sets - DEV"
@@ -206,6 +259,7 @@ class SelectionSetPanel(bpy.types.Panel):
         row.operator("pose.export_selection_sets", text="Export", icon='EXPORT')
         row.operator("pose.import_selection_sets", text="Import", icon='IMPORT')
 
+        layout.operator("pose.new_selection_set", text="New Set", icon='ADD')
         layout.operator("pose.remove_all_selection_sets", text="Remove All", icon='TRASH')
 
 def register():
@@ -213,6 +267,7 @@ def register():
     bpy.utils.register_class(ExportSelectionSetsOperator)
     bpy.utils.register_class(ImportSelectionSetsOperator)
     bpy.utils.register_class(RemoveAllSelectionSetsOperator)
+    bpy.utils.register_class(NewSelectionSetOperator)
     bpy.utils.register_class(SelectionSetPanel)
 
 def unregister():
@@ -220,6 +275,7 @@ def unregister():
     bpy.utils.unregister_class(ExportSelectionSetsOperator)
     bpy.utils.unregister_class(ImportSelectionSetsOperator)
     bpy.utils.unregister_class(RemoveAllSelectionSetsOperator)
+    bpy.utils.register_class(NewSelectionSetOperator)
     bpy.utils.unregister_class(SelectionSetPanel)
 
 if __name__ == "__main__":
