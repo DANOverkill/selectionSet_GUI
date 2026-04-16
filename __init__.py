@@ -228,6 +228,46 @@ class NewSelectionSetOperator(bpy.types.Operator):
 
         self.report({'INFO'}, f"Created set '{self.set_name}'")
         return {'FINISHED'}
+    
+class RemoveSelectionSetOperator(bpy.types.Operator):
+    bl_idname = "pose.remove_selection_set"
+    bl_label = "Remove Selection Set"
+    bl_description = "Delete a specific selection set"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    set_name: bpy.props.StringProperty(name="Set Name")
+
+    def invoke(self, context, event):
+        # Show confirmation dialog with the set name in the title/message
+        return context.window_manager.invoke_confirm(self, event)
+
+    def execute(self, context):
+        obj = context.object
+
+        # Safety checks (should already be in Pose mode from panel context)
+        if context.mode != 'POSE':
+            self.report({'ERROR'}, "Must be in Pose mode")
+            return {'CANCELLED'}
+
+        if hasattr(obj, 'proxy') and obj.proxy:
+            obj = obj.proxy
+
+        if not hasattr(obj, 'selection_sets'):
+            self.report({'ERROR'}, "Object has no selection sets")
+            return {'CANCELLED'}
+
+        # Find the set by name
+        set_index = obj.selection_sets.find(self.set_name)
+        if set_index < 0:
+            self.report({'ERROR'}, f"Set '{self.set_name}' not found")
+            return {'CANCELLED'}
+
+        # Set it as active and remove it
+        obj.active_selection_set = set_index
+        bpy.ops.pose.selection_set_remove()
+
+        self.report({'INFO'}, f"Removed '{self.set_name}'")
+        return {'FINISHED'}
 
 class SelectionSetPanel(bpy.types.Panel):
     bl_idname = "VIEW3D_PT_selection_set_panel"
@@ -240,43 +280,48 @@ class SelectionSetPanel(bpy.types.Panel):
         layout = self.layout
         obj = context.object
         
-        # Access linked data
         if hasattr(obj, 'proxy') and obj.proxy:
             obj = obj.proxy
         
-        # Fetch the selection sets directly
         if hasattr(obj, 'selection_sets'):
             selection_sets = obj.selection_sets.keys()
             for set_name in selection_sets:
-                op = layout.operator("object.selection_set_operator", text=set_name)
+                row = layout.row(align=True)
+                op = row.operator("object.selection_set_operator", text=set_name)
                 op.set_name = set_name
+
         else:
             layout.label(text="No selection sets found.")
-
+        
         layout.separator()
 
         row = layout.row(align=True)
         row.operator("pose.export_selection_sets", text="Export", icon='EXPORT')
         row.operator("pose.import_selection_sets", text="Import", icon='IMPORT')
 
-        layout.operator("pose.new_selection_set", text="New Set", icon='ADD')
+        row = layout.row(align=True)
+        row.operator("pose.new_selection_set", text="New Set", icon='ADD')
+        row.operator("pose.remove_selection_set", text="Remove Set", icon='REMOVE')
+
         layout.operator("pose.remove_all_selection_sets", text="Remove All", icon='TRASH')
 
 def register():
     bpy.utils.register_class(SelectionSetOperator)
+    bpy.utils.register_class(NewSelectionSetOperator)
+    bpy.utils.register_class(RemoveSelectionSetOperator)
     bpy.utils.register_class(ExportSelectionSetsOperator)
     bpy.utils.register_class(ImportSelectionSetsOperator)
     bpy.utils.register_class(RemoveAllSelectionSetsOperator)
-    bpy.utils.register_class(NewSelectionSetOperator)
     bpy.utils.register_class(SelectionSetPanel)
 
 def unregister():
-    bpy.utils.unregister_class(SelectionSetOperator)
-    bpy.utils.unregister_class(ExportSelectionSetsOperator)
-    bpy.utils.unregister_class(ImportSelectionSetsOperator)
-    bpy.utils.unregister_class(RemoveAllSelectionSetsOperator)
+    bpy.utils.register_class(SelectionSetOperator)
     bpy.utils.register_class(NewSelectionSetOperator)
-    bpy.utils.unregister_class(SelectionSetPanel)
+    bpy.utils.register_class(RemoveSelectionSetOperator)
+    bpy.utils.register_class(ExportSelectionSetsOperator)
+    bpy.utils.register_class(ImportSelectionSetsOperator)
+    bpy.utils.register_class(RemoveAllSelectionSetsOperator)
+    bpy.utils.register_class(SelectionSetPanel)
 
 if __name__ == "__main__":
     register()
