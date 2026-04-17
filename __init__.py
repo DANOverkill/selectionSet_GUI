@@ -289,6 +289,8 @@ class SelectionSetPanel(bpy.types.Panel):
                 row = layout.row(align=True)
                 op = row.operator("object.selection_set_operator", text=set_name)
                 op.set_name = set_name
+                op_remove = row.operator("pose.remove_selection_set", text="", icon='X')
+                op_remove.set_name = set_name                
 
         else:
             layout.label(text="No selection sets found.")
@@ -296,19 +298,19 @@ class SelectionSetPanel(bpy.types.Panel):
         layout.separator()
 
         row = layout.row(align=True)
-        row.operator("pose.export_selection_sets", text="Export", icon='EXPORT')
-        row.operator("pose.import_selection_sets", text="Import", icon='IMPORT')
+        row.operator("pose.new_selection_set", text="New Set", icon='ADD')
+        #row.operator("pose.remove_selection_set", text="Remove Set", icon='REMOVE')
 
         row = layout.row(align=True)
-        row.operator("pose.new_selection_set", text="New Set", icon='ADD')
-        row.operator("pose.remove_selection_set", text="Remove Set", icon='REMOVE')
+        row.operator("pose.export_selection_sets", text="Export", icon='EXPORT')
+        row.operator("pose.import_selection_sets", text="Import", icon='IMPORT')
 
         layout.operator("pose.remove_all_selection_sets", text="Remove All", icon='TRASH')
 
 def register():
     bpy.utils.register_class(SelectionSetOperator)
     bpy.utils.register_class(NewSelectionSetOperator)
-    bpy.utils.register_class(RemoveSelectionSetOperator)
+    # bpy.utils.register_class(RemoveSelectionSetOperator)
     bpy.utils.register_class(ExportSelectionSetsOperator)
     bpy.utils.register_class(ImportSelectionSetsOperator)
     bpy.utils.register_class(RemoveAllSelectionSetsOperator)
@@ -317,7 +319,7 @@ def register():
 def unregister():
     bpy.utils.register_class(SelectionSetOperator)
     bpy.utils.register_class(NewSelectionSetOperator)
-    bpy.utils.register_class(RemoveSelectionSetOperator)
+    # bpy.utils.register_class(RemoveSelectionSetOperator)
     bpy.utils.register_class(ExportSelectionSetsOperator)
     bpy.utils.register_class(ImportSelectionSetsOperator)
     bpy.utils.register_class(RemoveAllSelectionSetsOperator)
