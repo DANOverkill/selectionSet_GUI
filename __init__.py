@@ -8,6 +8,24 @@ bl_info = {
 
 import bpy
 
+#defining boolean to track activation of removal mode (default as false)
+def register_properties():
+    bpy.types.Scene.selection_set_remove_mode = bpy.props.BoolProperty(
+        name="Selection Set Remove Mode",
+        description="Toggle removal mode to show delete buttons next to each set",
+        default=False
+    )
+    bpy.types.Scene.selection_set_edit_mode = bpy.props.BoolProperty(
+        name="Edit Mode",
+        description="Show reorder arrows for selection sets",
+        default=False
+    )
+
+
+def unregister_properties():
+    del bpy.types.Scene.selection_set_remove_mode
+    del bpy.types.Scene.selection_set_edit_mode
+
 class SelectionSetOperator(bpy.types.Operator):
     bl_idname = "object.selection_set_operator"
     bl_label = "Select Set"
@@ -269,6 +287,77 @@ class RemoveSelectionSetOperator(bpy.types.Operator):
         self.report({'INFO'}, f"Removed '{self.set_name}'")
         return {'FINISHED'}
 
+class ToggleRemoveModeOperator(bpy.types.Operator):
+    bl_idname = "pose.toggle_remove_mode"
+    bl_label = "Toggle Remove Mode"
+    bl_description = "Show/hide remove buttons for selection sets"
+    bl_options = {'REGISTER'}
+
+    def execute(self, context):
+        context.scene.selection_set_remove_mode = not context.scene.selection_set_remove_mode
+        # Force UI redraw
+        for area in context.screen.areas:
+            if area.type == 'VIEW_3D':
+                area.tag_redraw()
+        return {'FINISHED'}
+
+class MoveSelectionSetOperator(bpy.types.Operator):
+    bl_idname = "pose.move_selection_set"
+    bl_label = "Move Selection Set"
+    bl_description = "Move the selection set up or down in the list"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    set_name: bpy.props.StringProperty(name="Set Name")
+    direction: bpy.props.EnumProperty(
+        items=[
+            ('UP', "Up", ""),
+            ('DOWN', "Down", ""),
+        ],
+        name="Direction"
+    )
+
+    def execute(self, context):
+        obj = context.object
+
+        # Safety checks
+        if context.mode != 'POSE':
+            self.report({'ERROR'}, "Must be in Pose mode")
+            return {'CANCELLED'}
+
+        if hasattr(obj, 'proxy') and obj.proxy:
+            obj = obj.proxy
+
+        if not hasattr(obj, 'selection_sets'):
+            self.report({'ERROR'}, "Object has no selection sets")
+            return {'CANCELLED'}
+
+        # Find the set index
+        set_index = obj.selection_sets.find(self.set_name)
+        if set_index < 0:
+            self.report({'ERROR'}, f"Set '{self.set_name}' not found")
+            return {'CANCELLED'}
+
+        # Set it as active and move
+        obj.active_selection_set = set_index
+        bpy.ops.pose.selection_set_move(direction=self.direction)
+
+        return {'FINISHED'}
+    
+class ToggleEditModeOperator(bpy.types.Operator):
+    bl_idname = "pose.toggle_edit_mode"
+    bl_label = "Toggle Edit Mode"
+    bl_description = "Show/hide reorder arrows for selection sets"
+    bl_options = {'REGISTER'}
+
+    def execute(self, context):
+        context.scene.selection_set_edit_mode = not context.scene.selection_set_edit_mode
+        # Redraw UI
+        for area in context.screen.areas:
+            if area.type == 'VIEW_3D':
+                area.tag_redraw()
+        return {'FINISHED'}
+
+# Draw Panel
 class SelectionSetPanel(bpy.types.Panel):
     bl_idname = "VIEW3D_PT_selection_set_panel"
     bl_label = "Selection Sets - DEV"
@@ -279,6 +368,7 @@ class SelectionSetPanel(bpy.types.Panel):
     def draw(self, context):
         layout = self.layout
         obj = context.object
+        scene = context.scene
         
         if hasattr(obj, 'proxy') and obj.proxy:
             obj = obj.proxy
@@ -289,41 +379,71 @@ class SelectionSetPanel(bpy.types.Panel):
                 row = layout.row(align=True)
                 op = row.operator("object.selection_set_operator", text=set_name)
                 op.set_name = set_name
-                op_remove = row.operator("pose.remove_selection_set", text="", icon='X')
-                op_remove.set_name = set_name                
+                if scene.selection_set_edit_mode:
+                    # Up arrow draw
+                    op_up = row.operator("pose.move_selection_set", text="", icon='TRIA_UP')
+                    op_up.set_name = set_name
+                    op_up.direction = 'UP'
+                    # Down arrow draw
+                    op_down = row.operator("pose.move_selection_set", text="", icon='TRIA_DOWN')
+                    op_down.set_name = set_name
+                    op_down.direction = 'DOWN'
 
+                if scene.selection_set_remove_mode:    
+                    #remove button draw                    
+                    op_remove = row.operator("pose.remove_selection_set", text="", icon='X')
+                    op_remove.set_name = set_name
         else:
             layout.label(text="No selection sets found.")
         
         layout.separator()
 
+        #row for the individual edit for the selection sets (delete/move up or down)
         row = layout.row(align=True)
         row.operator("pose.new_selection_set", text="New Set", icon='ADD')
-        #row.operator("pose.remove_selection_set", text="Remove Set", icon='REMOVE')
 
+        edit_mode_on = scene.selection_set_edit_mode
+        edit_icon = 'CHECKBOX_HLT' if edit_mode_on else 'CHECKBOX_DEHLT'
+        row.operator("pose.toggle_edit_mode", text="Edit", icon=edit_icon)
+
+        remove_mode_on = scene.selection_set_remove_mode
+        toggle_icon = 'CHECKBOX_HLT' if remove_mode_on else 'CHECKBOX_DEHLT'
+        toggle_text = "Remove Mode" if remove_mode_on else "Remove Mode"
+        row.operator("pose.toggle_remove_mode", text="Del", icon=toggle_icon)
+
+        #row for the import/export buttons
         row = layout.row(align=True)
         row.operator("pose.export_selection_sets", text="Export", icon='EXPORT')
         row.operator("pose.import_selection_sets", text="Import", icon='IMPORT')
 
+        #row for the remove all button
         layout.operator("pose.remove_all_selection_sets", text="Remove All", icon='TRASH')
 
 def register():
+    register_properties()
     bpy.utils.register_class(SelectionSetOperator)
-    bpy.utils.register_class(NewSelectionSetOperator)
-    # bpy.utils.register_class(RemoveSelectionSetOperator)
     bpy.utils.register_class(ExportSelectionSetsOperator)
     bpy.utils.register_class(ImportSelectionSetsOperator)
     bpy.utils.register_class(RemoveAllSelectionSetsOperator)
+    bpy.utils.register_class(NewSelectionSetOperator)
+    bpy.utils.register_class(RemoveSelectionSetOperator)
+    bpy.utils.register_class(ToggleRemoveModeOperator)
+    bpy.utils.register_class(MoveSelectionSetOperator)
+    bpy.utils.register_class(ToggleEditModeOperator)
     bpy.utils.register_class(SelectionSetPanel)
 
 def unregister():
-    bpy.utils.register_class(SelectionSetOperator)
-    bpy.utils.register_class(NewSelectionSetOperator)
-    # bpy.utils.register_class(RemoveSelectionSetOperator)
-    bpy.utils.register_class(ExportSelectionSetsOperator)
-    bpy.utils.register_class(ImportSelectionSetsOperator)
-    bpy.utils.register_class(RemoveAllSelectionSetsOperator)
-    bpy.utils.register_class(SelectionSetPanel)
+    unregister_properties()
+    bpy.utils.unregister_class(SelectionSetOperator)
+    bpy.utils.unregister_class(ExportSelectionSetsOperator)
+    bpy.utils.unregister_class(ImportSelectionSetsOperator)
+    bpy.utils.unregister_class(RemoveAllSelectionSetsOperator)
+    bpy.utils.unregister_class(NewSelectionSetOperator)
+    bpy.utils.unregister_class(RemoveSelectionSetOperator)
+    bpy.utils.unregister_class(ToggleRemoveModeOperator)
+    bpy.utils.register_class(MoveSelectionSetOperator)
+    bpy.utils.register_class(ToggleEditModeOperator)
+    bpy.utils.unregister_class(SelectionSetPanel)
 
 if __name__ == "__main__":
     register()
