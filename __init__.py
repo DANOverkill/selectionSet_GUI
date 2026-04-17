@@ -1,5 +1,5 @@
 bl_info = {
-    "name": "Dan's Selection Set Panel - TOOLS DEV",
+    "name": "Selection Set Panel - DEV",
     "author": "DANOverkill",
     "version": (2, 0, 0),
     "blender": (2, 80, 0),
