@@ -568,10 +568,13 @@ class SelectionSetPanel(bpy.types.Panel):
         
         layout.separator()
 
-        row = layout.row(align=True)
+        box = layout.box()
+        box.label(text="Tools", icon='TOOL_SETTINGS')
+
+        row = box.row(align=True)
         row.operator("pose.new_selection_set", text="New Set", icon='ADD')
 
-        row = layout.row(align=True)
+        row = box.row(align=True)
         modify_on = scene.selection_set_modify_mode
         modify_icon = 'CHECKBOX_HLT' if modify_on else 'CHECKBOX_DEHLT'
         row.operator("pose.toggle_modify_mode", text="Add/Rem", icon=modify_icon)
@@ -589,11 +592,11 @@ class SelectionSetPanel(bpy.types.Panel):
         toggle_text = "Remove Mode" if remove_mode_on else "Remove Mode"
         row.operator("pose.toggle_remove_mode", text="Del", icon=toggle_icon)
 
-        row = layout.row(align=True)
+        row = box.row(align=True)
         row.operator("pose.export_selection_sets", text="Export", icon='EXPORT')
         row.operator("pose.import_selection_sets", text="Import", icon='IMPORT')
 
-        layout.operator("pose.remove_all_selection_sets", text="Remove All", icon='TRASH')
+        box.operator("pose.remove_all_selection_sets", text="Remove All", icon='TRASH')
 
 def register():
     register_properties()
