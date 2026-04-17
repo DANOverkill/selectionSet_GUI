@@ -37,7 +37,7 @@ def unregister_properties():
     del bpy.types.Scene.selection_set_remove_mode
     del bpy.types.Scene.selection_set_edit_mode
     del bpy.types.Scene.selection_set_modify_mode
-    del bpy.type.Scene.selection_set_rename_mode 
+    del bpy.types.Scene.selection_set_rename_mode 
 
 class SelectionSetOperator(bpy.types.Operator):
     bl_idname = "object.selection_set_operator"
