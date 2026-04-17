@@ -345,7 +345,7 @@ class MoveSelectionSetOperator(bpy.types.Operator):
     
 class ToggleEditModeOperator(bpy.types.Operator):
     bl_idname = "pose.toggle_edit_mode"
-    bl_label = "Toggle Edit Mode"
+    bl_label = "Toggle Move Mode"
     bl_description = "Show/hide reorder arrows for selection sets"
     bl_options = {'REGISTER'}
 
@@ -398,25 +398,22 @@ class SelectionSetPanel(bpy.types.Panel):
         
         layout.separator()
 
-        #row for the individual edit for the selection sets (delete/move up or down)
         row = layout.row(align=True)
         row.operator("pose.new_selection_set", text="New Set", icon='ADD')
 
         edit_mode_on = scene.selection_set_edit_mode
         edit_icon = 'CHECKBOX_HLT' if edit_mode_on else 'CHECKBOX_DEHLT'
-        row.operator("pose.toggle_edit_mode", text="Edit", icon=edit_icon)
+        row.operator("pose.toggle_edit_mode", text="", icon=edit_icon)
 
         remove_mode_on = scene.selection_set_remove_mode
         toggle_icon = 'CHECKBOX_HLT' if remove_mode_on else 'CHECKBOX_DEHLT'
         toggle_text = "Remove Mode" if remove_mode_on else "Remove Mode"
-        row.operator("pose.toggle_remove_mode", text="Del", icon=toggle_icon)
+        row.operator("pose.toggle_remove_mode", text="", icon=toggle_icon)
 
-        #row for the import/export buttons
         row = layout.row(align=True)
         row.operator("pose.export_selection_sets", text="Export", icon='EXPORT')
         row.operator("pose.import_selection_sets", text="Import", icon='IMPORT')
 
-        #row for the remove all button
         layout.operator("pose.remove_all_selection_sets", text="Remove All", icon='TRASH')
 
 def register():
