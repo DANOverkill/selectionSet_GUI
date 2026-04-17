@@ -87,9 +87,18 @@ class ExportSelectionSetsOperator(bpy.types.Operator):
     bl_description = "Export all selection sets to a text file"
     
     filepath: bpy.props.StringProperty(subtype="FILE_PATH")
-    filename: bpy.props.StringProperty(name="File Name", default="selection_sets.json")
 
     def invoke(self, context, event):
+        obj = context.object
+        if obj and obj.type == 'ARMATURE':
+            base_name = obj.name
+        else:
+            base_name = "selection_sets"
+        
+        # Sanitize the name (optional but safe)
+        safe_name = "".join(c for c in base_name if c.isalnum() or c in "._- ")
+        self.filepath = f"{safe_name}_selection_sets.json"
+        
         context.window_manager.fileselect_add(self)
         return {'RUNNING_MODAL'}
 
