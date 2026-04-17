@@ -22,11 +22,16 @@ def register_properties():
         description="Show reorder arrows for selection sets",
         default=False
     )
-
+    bpy.types.Scene.selection_set_modify_mode = bpy.props.BoolProperty(
+        name="Bones Edit Mode",
+        description="Show +/- signs for adding or removing selected bones from selection sets",
+        default=False
+    ) 
 
 def unregister_properties():
     del bpy.types.Scene.selection_set_remove_mode
     del bpy.types.Scene.selection_set_edit_mode
+    del bpy.types.Scene.selection_set_modify_mode 
 
 class SelectionSetOperator(bpy.types.Operator):
     bl_idname = "object.selection_set_operator"
@@ -298,7 +303,71 @@ class RemoveSelectionSetOperator(bpy.types.Operator):
 
         self.report({'INFO'}, f"Removed '{self.set_name}'")
         return {'FINISHED'}
+    
+class AssignToSelectionSetOperator(bpy.types.Operator):
+    bl_idname = "pose.assign_to_selection_set"
+    bl_label = "Assign Bones"
+    bl_description = "Add selected bones to this selection set"
+    bl_options = {'REGISTER', 'UNDO'}
 
+    set_name: bpy.props.StringProperty(name="Set Name")
+
+    def execute(self, context):
+        obj = context.object
+        if context.mode != 'POSE':
+            self.report({'ERROR'}, "Must be in Pose mode")
+            return {'CANCELLED'}
+
+        if hasattr(obj, 'proxy') and obj.proxy:
+            obj = obj.proxy
+
+        if not context.selected_pose_bones:
+            self.report({'WARNING'}, "No bones selected")
+            return {'CANCELLED'}
+
+        set_index = obj.selection_sets.find(self.set_name)
+        if set_index < 0:
+            self.report({'ERROR'}, f"Set '{self.set_name}' not found")
+            return {'CANCELLED'}
+
+        obj.active_selection_set = set_index
+        bpy.ops.pose.selection_set_assign()
+        self.report({'INFO'}, f"Assigned bones to '{self.set_name}'")
+        return {'FINISHED'}
+    
+class UnassignFromSelectionSetOperator(bpy.types.Operator):
+    bl_idname = "pose.unassign_from_selection_set"
+    bl_label = "Unassign Bones"
+    bl_description = "Remove selected bones from this selection set"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    set_name: bpy.props.StringProperty(name="Set Name")
+
+    def execute(self, context):
+        obj = context.object
+        if context.mode != 'POSE':
+            self.report({'ERROR'}, "Must be in Pose mode")
+            return {'CANCELLED'}
+
+        if hasattr(obj, 'proxy') and obj.proxy:
+            obj = obj.proxy
+
+        if not context.selected_pose_bones:
+            self.report({'WARNING'}, "No bones selected")
+            return {'CANCELLED'}
+
+        set_index = obj.selection_sets.find(self.set_name)
+        if set_index < 0:
+            self.report({'ERROR'}, f"Set '{self.set_name}' not found")
+            return {'CANCELLED'}
+
+        obj.active_selection_set = set_index
+        bpy.ops.pose.selection_set_unassign()
+        self.report({'INFO'}, f"Unassigned bones from '{self.set_name}'")
+        return {'FINISHED'}
+
+
+# ============= Toggle Operators ====================
 class ToggleRemoveModeOperator(bpy.types.Operator):
     bl_idname = "pose.toggle_remove_mode"
     bl_label = "Toggle Remove Mode"
@@ -312,7 +381,7 @@ class ToggleRemoveModeOperator(bpy.types.Operator):
             if area.type == 'VIEW_3D':
                 area.tag_redraw()
         return {'FINISHED'}
-
+    
 class MoveSelectionSetOperator(bpy.types.Operator):
     bl_idname = "pose.move_selection_set"
     bl_label = "Move Selection Set"
@@ -368,8 +437,23 @@ class ToggleEditModeOperator(bpy.types.Operator):
             if area.type == 'VIEW_3D':
                 area.tag_redraw()
         return {'FINISHED'}
+    
+class ToggleModifyModeOperator(bpy.types.Operator):
+    bl_idname = "pose.toggle_modify_mode"
+    bl_label = "Toggle Modify Mode"
+    bl_description = "Show/hide assign/unassign buttons for selection sets"
+    bl_options = {'REGISTER'}
 
-# Draw Panel
+    def execute(self, context):
+        context.scene.selection_set_modify_mode = not context.scene.selection_set_modify_mode
+        # Redraw UI
+        for area in context.screen.areas:
+            if area.type == 'VIEW_3D':
+                area.tag_redraw()
+        return {'FINISHED'}
+#------------------------------------------------
+
+# =============== Draw Panel ====================
 class SelectionSetPanel(bpy.types.Panel):
     bl_idname = "VIEW3D_PT_selection_set_panel"
     bl_label = "Selection Sets - DEV"
@@ -405,6 +489,13 @@ class SelectionSetPanel(bpy.types.Panel):
                     #remove button draw                    
                     op_remove = row.operator("pose.remove_selection_set", text="", icon='X')
                     op_remove.set_name = set_name
+
+                if scene.selection_set_modify_mode:
+                    op_assign = row.operator("pose.assign_to_selection_set", text="", icon='ADD')
+                    op_assign.set_name = set_name
+                    op_unassign = row.operator("pose.unassign_from_selection_set", text="", icon='REMOVE')
+                    op_unassign.set_name = set_name
+                
         else:
             layout.label(text="No selection sets found.")
         
@@ -421,6 +512,10 @@ class SelectionSetPanel(bpy.types.Panel):
         toggle_icon = 'CHECKBOX_HLT' if remove_mode_on else 'CHECKBOX_DEHLT'
         toggle_text = "Remove Mode" if remove_mode_on else "Remove Mode"
         row.operator("pose.toggle_remove_mode", text="", icon=toggle_icon)
+
+        modify_on = scene.selection_set_modify_mode
+        modify_icon = 'CHECKBOX_HLT' if modify_on else 'CHECKBOX_DEHLT'
+        row.operator("pose.toggle_modify_mode", text="", icon=modify_icon)
 
         row = layout.row(align=True)
         row.operator("pose.export_selection_sets", text="Export", icon='EXPORT')
@@ -439,6 +534,9 @@ def register():
     bpy.utils.register_class(ToggleRemoveModeOperator)
     bpy.utils.register_class(MoveSelectionSetOperator)
     bpy.utils.register_class(ToggleEditModeOperator)
+    bpy.utils.register_class(ToggleModifyModeOperator)
+    bpy.utils.register_class(AssignToSelectionSetOperator)
+    bpy.utils.register_class(UnassignFromSelectionSetOperator)
     bpy.utils.register_class(SelectionSetPanel)
 
 def unregister():
@@ -450,8 +548,11 @@ def unregister():
     bpy.utils.unregister_class(NewSelectionSetOperator)
     bpy.utils.unregister_class(RemoveSelectionSetOperator)
     bpy.utils.unregister_class(ToggleRemoveModeOperator)
-    bpy.utils.register_class(MoveSelectionSetOperator)
-    bpy.utils.register_class(ToggleEditModeOperator)
+    bpy.utils.unregister_class(MoveSelectionSetOperator)
+    bpy.utils.unregister_class(ToggleEditModeOperator)
+    bpy.utils.unregister_class(ToggleModifyModeOperator)
+    bpy.utils.unregister_class(AssignToSelectionSetOperator)
+    bpy.utils.unregister_class(UnassignFromSelectionSetOperator)
     bpy.utils.unregister_class(SelectionSetPanel)
 
 if __name__ == "__main__":
