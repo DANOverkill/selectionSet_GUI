@@ -7,6 +7,8 @@ bl_info = {
 }
 
 import bpy
+import os
+from datetime import datetime
 
 #defining boolean to track activation of removal mode (default as false)
 def register_properties():
@@ -85,7 +87,7 @@ class ExportSelectionSetsOperator(bpy.types.Operator):
     bl_description = "Export all selection sets to a text file"
     
     filepath: bpy.props.StringProperty(subtype="FILE_PATH")
-    filename: bpy.props.StringProperty(name="File Name", default="selection_sets.txt")
+    filename: bpy.props.StringProperty(name="File Name", default="selection_sets.json")
 
     def invoke(self, context, event):
         context.window_manager.fileselect_add(self)
@@ -113,11 +115,12 @@ class ExportSelectionSetsOperator(bpy.types.Operator):
 
         # Write clipboard content to file
         filepath = self.filepath
-        if not filepath.lower().endswith('.txt'):
-            filepath += '.txt'
+        if not os.path.splitext(filepath)[1]:
+            filepath += '.json'
 
         try:
             clipboard_text = context.window_manager.clipboard
+            header = f"# Selection Sets exported from {obj.name} on {datetime.now()}\n"
             with open(filepath, 'w', encoding='utf-8') as f:
                 f.write(clipboard_text)
             self.report({'INFO'}, f"Exported to {filepath}")
